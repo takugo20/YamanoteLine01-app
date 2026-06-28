@@ -2159,8 +2159,14 @@ async function startOnlineGame() {
   }
 
   currentRoom = data;
-  document.getElementById("statePreview").textContent = JSON.stringify(gameState, null, 2);
-  setConnectionStatus("通信：ゲームを開始しました");
+currentGameState = data.game_state;
+
+document.getElementById("statePreview").textContent = JSON.stringify(currentGameState, null, 2);
+
+renderBoard();
+renderGameView();
+
+setConnectionStatus("通信：ゲームを開始しました");
 }
 
 /************************************************************
