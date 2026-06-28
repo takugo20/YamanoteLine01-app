@@ -2931,11 +2931,11 @@ async function rollDiceOnline() {
     createdAt: new Date().toISOString()
   };
 
-  nextState.phase = "after_roll";
-
   nextState.logs.push(
     `${player.name} が ${roll} を出しました。${getSquareName(startPosition)} から ${getSquareName(endPosition)} へ移動しました。`
   );
+
+  processArrivalSquare(nextState, player);
 
   await saveGameStateOnline(nextState);
 }
