@@ -397,6 +397,60 @@
 
         <div class="form-row">
           <label for="targetAssets">目標資産</label>
+          <div class="form-row">
+  <label for="supabaseUrl">Supabase URL</label>
+  <input
+    id="supabaseUrl"
+    type="text"
+    placeholder="https://xxxxx.supabase.co"
+    autocomplete="off"
+  />
+</div>
+
+<div class="form-row">
+  <label for="supabaseAnonKey">Supabase anon key</label>
+  <input
+    id="supabaseAnonKey"
+    type="password"
+    placeholder="anon public key"
+    autocomplete="off"
+  />
+</div>
+
+<button id="saveSupabaseButton" type="button">Supabase設定を保存</button>
+
+<div style="height: 12px;"></div>
+
+<div class="panel-title">通信対戦</div>
+
+<div class="form-row">
+  <label for="joinRoomCode">参加する部屋コード</label>
+  <input
+    id="joinRoomCode"
+    type="text"
+    placeholder="例：A7K3Q"
+    maxlength="5"
+    autocomplete="off"
+  />
+</div>
+
+<div class="room-actions two">
+  <button id="createRoomButton" type="button">部屋を作る</button>
+  <button id="joinRoomButton" type="button">部屋に参加</button>
+</div>
+
+<div style="height: 10px;"></div>
+
+<div id="connectionStatus" class="small-text">通信：未接続</div>
+
+<div id="roomInfo" style="display:none; margin-top: 10px;">
+  <div class="room-code-box" id="roomCodeDisplay">-----</div>
+  <div class="waiting-list" id="waitingPlayers"></div>
+
+  <div class="room-actions">
+    <button id="startGameButton" type="button" disabled>ゲーム開始</button>
+  </div>
+</div>
           <select id="targetAssets">
             <option value="10000">短時間：1億円</option>
             <option value="50000" selected>標準：5億円</option>
