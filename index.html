@@ -2160,6 +2160,318 @@ async function startOnlineGame() {
   setConnectionStatus("通信：ゲームを開始しました");
 }
 
+/************************************************************
+ * ゲーム開始後の画面・ルーレット・ターン進行
+ ************************************************************/
+
+function cloneState(state) {
+  return JSON.parse(JSON.stringify(state));
+}
+
+function getCurrentPlayer(state) {
+  if (!state || !state.players || state.players.length === 0) return null;
+  return state.players[state.currentPlayerIndex] || null;
+}
+
+function isMyTurn() {
+  if (!currentGameState || !currentRoomPlayer) return false;
+
+  const currentPlayer = getCurrentPlayer(currentGameState);
+  if (!currentPlayer) return false;
+
+  return currentPlayer.id === currentRoomPlayer.id;
+}
+
+function getSquareName(position) {
+  const square = MAP_SQUARES.find(item => item.id === position);
+  return square ? square.name : `No.${position}`;
+}
+
+function getNextActivePlayerIndex(state) {
+  const total = state.players.length;
+  let index = state.currentPlayerIndex;
+
+  for (let i = 0; i < total; i++) {
+    index = (index + 1) % total;
+    const player = state.players[index];
+
+    if (player && !player.bankrupt) {
+      return index;
+    }
+  }
+
+  return state.currentPlayerIndex;
+}
+
+function renderGameView() {
+  const panel = document.getElementById("gamePlayPanel");
+
+  if (!panel) return;
+
+  if (!currentGameState || currentGameState.status !== "playing") {
+    panel.style.display = "none";
+    return;
+  }
+
+  panel.style.display = "block";
+
+  renderCurrentPlayerBox();
+  renderRollResult();
+  renderPlayerSummaryList();
+  renderActionButtons();
+  renderLogPanel();
+}
+
+function renderCurrentPlayerBox() {
+  const box = document.getElementById("currentPlayerBox");
+  if (!box || !currentGameState) return;
+
+  const player = getCurrentPlayer(currentGameState);
+  if (!player) {
+    box.textContent = "現在プレイヤー情報なし";
+    return;
+  }
+
+  const totalAssets = calculateTotalAssets(currentGameState, player.id);
+  const squareName = getSquareName(player.position);
+  const myTurnText = isMyTurn() ? "あなたの手番です" : "他のプレイヤーの手番です";
+
+  box.innerHTML = `
+    <div class="current-player-name">
+      <span class="color-chip" style="background:${player.colorValue}"></span>
+      ${player.name}
+    </div>
+    <div class="current-player-meta">
+      ターン数：${currentGameState.turnCount}<br>
+      現在地：${squareName}<br>
+      現金：${formatMoney(player.money)}<br>
+      総資産：${formatMoney(totalAssets)}<br>
+      状態：${myTurnText}
+    </div>
+  `;
+}
+
+function renderRollResult() {
+  const el = document.getElementById("rollResult");
+  if (!el || !currentGameState) return;
+
+  if (!currentGameState.lastRoll) {
+    el.textContent = "出目：-";
+    return;
+  }
+
+  const roll = currentGameState.lastRoll;
+  const player = currentGameState.players.find(item => item.id === roll.playerId);
+  const name = player ? player.name : "プレイヤー";
+
+  el.textContent = `${name} の出目：${roll.value}`;
+}
+
+function renderPlayerSummaryList() {
+  const container = document.getElementById("playerSummaryList");
+  if (!container || !currentGameState) return;
+
+  container.innerHTML = "";
+
+  for (let i = 0; i < currentGameState.players.length; i++) {
+    const player = currentGameState.players[i];
+    const totalAssets = calculateTotalAssets(currentGameState, player.id);
+    const landAssets = calculateLandAssets(currentGameState, player.id);
+    const stockAssets = calculateStockAssets(currentGameState, player.id);
+    const squareName = getSquareName(player.position);
+
+    const card = document.createElement("div");
+    card.className = "player-summary-card";
+
+    if (i === currentGameState.currentPlayerIndex) {
+      card.classList.add("current-turn-card");
+    }
+
+    card.innerHTML = `
+      <div class="player-summary-head">
+        <span>
+          <span class="color-chip" style="background:${player.colorValue}"></span>
+          ${player.name}
+        </span>
+        <span>${i === currentGameState.currentPlayerIndex ? "手番" : ""}</span>
+      </div>
+      <div class="player-summary-body">
+        現在地：${squareName}<br>
+        現金：${formatMoney(player.money)}<br>
+        土地資産：${formatMoney(landAssets)}<br>
+        株式資産：${formatMoney(stockAssets)}<br>
+        返済予定額：${formatMoney(player.loanDue || 0)}<br>
+        総資産：${formatMoney(totalAssets)}<br>
+        手札：${player.cards.length}枚
+      </div>
+    `;
+
+    container.appendChild(card);
+  }
+}
+
+function renderActionButtons() {
+  const rollButton = document.getElementById("rollButton");
+  const endTurnButton = document.getElementById("endTurnButton");
+
+  if (!rollButton || !endTurnButton || !currentGameState) return;
+
+  const canOperate = isMyTurn();
+  const phase = currentGameState.phase;
+
+  rollButton.disabled = !(canOperate && phase === "before_roll");
+  endTurnButton.disabled = !(canOperate && phase === "after_roll");
+}
+
+function renderLogPanel() {
+  const panel = document.getElementById("logPanel");
+  if (!panel || !currentGameState) return;
+
+  const logs = currentGameState.logs || [];
+  const recentLogs = logs.slice(-20).reverse();
+
+  if (recentLogs.length === 0) {
+    panel.innerHTML = `<div class="small-text">ログはまだありません。</div>`;
+    return;
+  }
+
+  panel.innerHTML = recentLogs.map(log => {
+    return `<div class="log-line">${escapeHtml(log)}</div>`;
+  }).join("");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function saveGameStateOnline(nextState, options = {}) {
+  if (!supabaseClient || !currentRoom) {
+    alert("通信部屋に接続していません。");
+    return false;
+  }
+
+  const nextVersion = currentRoom.state_version + 1;
+
+  const updatePayload = {
+    game_state: nextState,
+    state_version: nextVersion,
+    current_player_index: nextState.currentPlayerIndex,
+    phase: nextState.phase,
+    status: nextState.status || "playing",
+    ...options
+  };
+
+  const { data, error } = await supabaseClient
+    .from("rooms")
+    .update(updatePayload)
+    .eq("id", currentRoom.id)
+    .eq("state_version", currentRoom.state_version)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    alert("ゲーム状態の更新に失敗しました。画面を最新状態に更新します。");
+    await loadRoomState(currentRoom.id);
+    return false;
+  }
+
+  currentRoom = data;
+  currentGameState = data.game_state;
+
+  renderBoard();
+  renderGameView();
+
+  return true;
+}
+
+async function rollDiceOnline() {
+  if (!currentGameState) return;
+
+  if (!isMyTurn()) {
+    alert("現在はあなたの手番ではありません。");
+    return;
+  }
+
+  if (currentGameState.phase !== "before_roll") {
+    alert("今はルーレットを回せません。");
+    return;
+  }
+
+  const nextState = cloneState(currentGameState);
+  const player = getCurrentPlayer(nextState);
+
+  if (!player) return;
+
+  if (player.skipTurn) {
+    player.skipTurn = false;
+    nextState.logs.push(`${player.name} は1回休みでした。`);
+    nextState.phase = "after_roll";
+
+    await saveGameStateOnline(nextState);
+    return;
+  }
+
+  const roll = Math.floor(Math.random() * 6) + 1;
+  const startPosition = player.position;
+  const passedSquares = getPassedSquares(startPosition, roll);
+  const endPosition = passedSquares[passedSquares.length - 1];
+
+  player.position = endPosition;
+
+  nextState.lastRoll = {
+    playerId: player.id,
+    value: roll,
+    startPosition,
+    endPosition,
+    passedSquares,
+    createdAt: new Date().toISOString()
+  };
+
+  nextState.phase = "after_roll";
+
+  nextState.logs.push(
+    `${player.name} が ${roll} を出しました。${getSquareName(startPosition)} から ${getSquareName(endPosition)} へ移動しました。`
+  );
+
+  await saveGameStateOnline(nextState);
+}
+
+async function endTurnOnline() {
+  if (!currentGameState) return;
+
+  if (!isMyTurn()) {
+    alert("現在はあなたの手番ではありません。");
+    return;
+  }
+
+  if (currentGameState.phase !== "after_roll") {
+    alert("まだターン終了できません。");
+    return;
+  }
+
+  const nextState = cloneState(currentGameState);
+  const currentPlayer = getCurrentPlayer(nextState);
+
+  const nextIndex = getNextActivePlayerIndex(nextState);
+  const nextPlayer = nextState.players[nextIndex];
+
+  nextState.currentPlayerIndex = nextIndex;
+  nextState.turnCount += 1;
+  nextState.phase = "before_roll";
+  nextState.lastRoll = null;
+
+  nextState.logs.push(`${currentPlayer.name} のターンが終了しました。`);
+  nextState.logs.push(`${nextPlayer.name} のターンです。`);
+
+  await saveGameStateOnline(nextState);
+}
+    
     /************************************************************
      * 初期化
      ************************************************************/
