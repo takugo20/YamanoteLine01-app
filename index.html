@@ -1995,15 +1995,18 @@ async function loadRoomState(roomId) {
 
   currentRoom = room;
   currentRoomPlayers = players;
+  currentGameState = room.game_state || null;
 
   const clientId = getClientId();
   currentRoomPlayer = players.find(player => player.client_id === clientId) || currentRoomPlayer;
 
   renderWaitingRoom();
+  renderBoard();
+  renderGameView();
 
   if (room.status === "playing" && room.game_state) {
     document.getElementById("statePreview").textContent = JSON.stringify(room.game_state, null, 2);
-    setConnectionStatus("通信：ゲーム開始済み");
+    setConnectionStatus("通信：ゲーム中");
   }
 }
 
