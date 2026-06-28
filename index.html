@@ -2918,7 +2918,7 @@ async function resolveInvestLandOnline(rawAmount) {
   );
 
   nextState.pendingAction = null;
-  nextState.phase = "after_roll";
+  processNextQueuedAction(nextState);
 
   await saveGameStateOnline(nextState);
 }
