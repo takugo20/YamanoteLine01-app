@@ -2495,6 +2495,9 @@ function init() {
   document.getElementById("joinRoomButton").addEventListener("click", joinRoomOnline);
   document.getElementById("startGameButton").addEventListener("click", startOnlineGame);
 
+  document.getElementById("rollButton").addEventListener("click", rollDiceOnline);
+  document.getElementById("endTurnButton").addEventListener("click", endTurnOnline);
+
   renderPlayerForms();
   renderBoard();
   renderAreas();
