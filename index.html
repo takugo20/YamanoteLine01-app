@@ -2846,10 +2846,10 @@ async function resolveBuyLandOnline(shouldBuy) {
     nextState.logs.push(`${player.name} は ${land.name} を購入しませんでした。`);
   }
 
-  nextState.pendingAction = null;
-  nextState.phase = "after_roll";
+    nextState.pendingAction = null;
+    processNextQueuedAction(nextState);
 
-  await saveGameStateOnline(nextState);
+    await saveGameStateOnline(nextState);
 }
 
 async function resolveInvestLandOnline(rawAmount) {
