@@ -2444,6 +2444,142 @@ function renderActionButtons() {
   endTurnButton.disabled = !(canOperate && phase === "after_roll");
 }
 
+ function renderPendingActionPanel() {
+  const panel = document.getElementById("pendingActionPanel");
+  if (!panel || !currentGameState) return;
+
+  const action = currentGameState.pendingAction;
+
+  if (!action) {
+    panel.classList.add("hidden");
+    panel.innerHTML = "";
+    return;
+  }
+
+  panel.classList.remove("hidden");
+
+  if (action.type === "buy_land") {
+    renderBuyLandAction(panel, action);
+    return;
+  }
+
+  if (action.type === "invest_land") {
+    renderInvestLandAction(panel, action);
+    return;
+  }
+
+  panel.innerHTML = `
+    <div class="pending-action-title">処理待ち</div>
+    <div class="pending-action-body">未対応の処理があります。</div>
+  `;
+}
+
+function renderBuyLandAction(panel, action) {
+  const land = findLand(currentGameState, action.landId);
+  const player = findPlayer(currentGameState, action.playerId);
+  const canOperate = isMyTurn();
+
+  if (!land || !player) {
+    panel.innerHTML = `
+      <div class="pending-action-title">土地購入</div>
+      <div class="pending-action-body">土地情報が見つかりません。</div>
+    `;
+    return;
+  }
+
+  const canBuy = player.money >= land.price;
+
+  panel.innerHTML = `
+    <div class="pending-action-title">土地購入</div>
+    <div class="pending-action-body">
+      ${player.name} は ${land.name} に到着しました。<br>
+      購入価格：${formatMoney(land.price)}<br>
+      基本通行料：${formatMoney(land.baseToll)}<br>
+      現在の現金：${formatMoney(player.money)}<br>
+      ${canBuy ? "この土地を購入できます。" : "現金が不足しているため購入できません。"}
+    </div>
+    <div class="button-row">
+      <button id="buyLandButton" type="button" ${!canOperate || !canBuy ? "disabled" : ""}>購入する</button>
+      <button id="skipBuyLandButton" type="button" class="secondary" ${!canOperate ? "disabled" : ""}>購入しない</button>
+    </div>
+  `;
+
+  const buyButton = document.getElementById("buyLandButton");
+  const skipButton = document.getElementById("skipBuyLandButton");
+
+  if (buyButton) {
+    buyButton.addEventListener("click", () => resolveBuyLandOnline(true));
+  }
+
+  if (skipButton) {
+    skipButton.addEventListener("click", () => resolveBuyLandOnline(false));
+  }
+}
+
+function renderInvestLandAction(panel, action) {
+  const land = findLand(currentGameState, action.landId);
+  const player = findPlayer(currentGameState, action.playerId);
+  const canOperate = isMyTurn();
+
+  if (!land || !player) {
+    panel.innerHTML = `
+      <div class="pending-action-title">増資</div>
+      <div class="pending-action-body">土地情報が見つかりません。</div>
+    `;
+    return;
+  }
+
+  const limit = calculateInvestmentLimit(currentGameState, player.id, land);
+  const remaining = getAdditionalInvestmentLimit(currentGameState, player.id, land);
+  const defaultAmount = Math.min(remaining, player.money, 1000);
+  const normalizedDefault = Math.max(0, normalizeInvestmentAmount(defaultAmount));
+
+  panel.innerHTML = `
+    <div class="pending-action-title">増資</div>
+    <div class="pending-action-body">
+      ${player.name} は自分の土地 ${land.name} に到着しました。<br>
+      現在価値：${formatMoney(land.value)}<br>
+      現在の累計増資額：${formatMoney(land.investment)}<br>
+      増資上限：${formatMoney(limit)}<br>
+      追加可能額：${formatMoney(remaining)}<br>
+      現在の現金：${formatMoney(player.money)}<br>
+      100万円単位で増資できます。
+    </div>
+
+    <div class="invest-input-row">
+      <input
+        id="investmentAmountInput"
+        type="number"
+        min="0"
+        step="100"
+        value="${normalizedDefault}"
+        ${!canOperate || remaining <= 0 ? "disabled" : ""}
+      />
+      <span class="small-text">万円</span>
+    </div>
+
+    <div class="button-row">
+      <button id="doInvestButton" type="button" ${!canOperate || remaining <= 0 ? "disabled" : ""}>増資する</button>
+      <button id="skipInvestButton" type="button" class="secondary" ${!canOperate ? "disabled" : ""}>増資しない</button>
+    </div>
+  `;
+
+  const doButton = document.getElementById("doInvestButton");
+  const skipButton = document.getElementById("skipInvestButton");
+
+  if (doButton) {
+    doButton.addEventListener("click", () => {
+      const input = document.getElementById("investmentAmountInput");
+      const amount = input ? input.value : 0;
+      resolveInvestLandOnline(amount);
+    });
+  }
+
+  if (skipButton) {
+    skipButton.addEventListener("click", () => resolveInvestSkipOnline());
+  }
+}   
+
 function renderLogPanel() {
   const panel = document.getElementById("logPanel");
   if (!panel || !currentGameState) return;
