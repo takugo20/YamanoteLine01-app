@@ -305,6 +305,54 @@
       white-space: pre;
     }
 
+    .room-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.room-actions.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.room-code-box {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fafafa;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+
+.waiting-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.waiting-player {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.status-pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
     @media (max-width: 920px) {
       .layout {
         grid-template-columns: 1fr;
