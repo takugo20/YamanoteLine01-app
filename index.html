@@ -2572,6 +2572,11 @@ function renderActionButtons() {
     return;
   }
 
+  if (action.type === "stock_trade") {
+  renderStockTradeAction(panel, action);
+  return;
+}
+   
   panel.innerHTML = `
     <div class="pending-action-title">処理待ち</div>
     <div class="pending-action-body">未対応の処理があります。</div>
