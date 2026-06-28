@@ -2474,6 +2474,95 @@ function renderActionButtons() {
   `;
 }
 
+function processArrivalSquare(nextState, player) {
+  const square = getSquareById(player.position);
+
+  if (!square) {
+    nextState.phase = "after_roll";
+    nextState.pendingAction = null;
+    return;
+  }
+
+  if (square.type === "land") {
+    processArrivalLand(nextState, player, square);
+    return;
+  }
+
+  nextState.phase = "after_roll";
+  nextState.pendingAction = null;
+  nextState.logs.push(`${player.name} は ${square.name} に到着しました。`);
+
+  if (square.type !== "land") {
+    nextState.logs.push(`${square.name} の効果は後続実装で追加します。`);
+  }
+}
+
+function processArrivalLand(nextState, player, square) {
+  const land = findLand(nextState, square.landId);
+
+  if (!land) {
+    nextState.phase = "after_roll";
+    nextState.pendingAction = null;
+    return;
+  }
+
+  if (!land.ownerId) {
+    nextState.phase = "land_decision";
+    nextState.pendingAction = {
+      type: "buy_land",
+      playerId: player.id,
+      landId: land.id
+    };
+
+    nextState.logs.push(`${player.name} は未所有の土地 ${land.name} に到着しました。`);
+    return;
+  }
+
+  if (land.ownerId === player.id) {
+    nextState.phase = "invest_decision";
+    nextState.pendingAction = {
+      type: "invest_land",
+      playerId: player.id,
+      landId: land.id
+    };
+
+    nextState.logs.push(`${player.name} は自分の土地 ${land.name} に到着しました。`);
+    return;
+  }
+
+  payLandToll(nextState, player, land);
+
+  nextState.phase = "after_roll";
+  nextState.pendingAction = null;
+}
+
+function payLandToll(nextState, visitor, land) {
+  const owner = findPlayer(nextState, land.ownerId);
+
+  if (!owner || owner.bankrupt) {
+    nextState.logs.push(`${visitor.name} は ${land.name} に到着しましたが、所有者がいないため通行料は発生しません。`);
+    return;
+  }
+
+  const monopoly = isAreaMonopoly(nextState, owner.id, land.areaId);
+  const toll = calculateCurrentToll(land, monopoly);
+
+  visitor.money -= toll;
+  owner.money += toll;
+
+  nextState.logs.push(
+    `${visitor.name} は ${owner.name} の土地 ${land.name} に止まり、通行料 ${formatMoney(toll)} を支払いました。`
+  );
+
+  if (monopoly) {
+    nextState.logs.push(`${land.name} は独占エリアの土地のため、通行料が2倍になっています。`);
+  }
+
+  if (visitor.money < 0) {
+    nextState.logs.push(`${visitor.name} の現金が不足しています。資産整理・破産処理は後続実装で追加します。`);
+  }
+}
+
 function renderBuyLandAction(panel, action) {
   const land = findLand(currentGameState, action.landId);
   const player = findPlayer(currentGameState, action.playerId);
