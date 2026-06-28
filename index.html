@@ -2225,6 +2225,68 @@ setConnectionStatus("通信：ゲームを開始しました");
 function cloneState(state) {
   return JSON.parse(JSON.stringify(state));
 }
+    
+function findPlayer(state, playerId) {
+  return state.players.find(player => player.id === playerId) || null;
+}
+
+function findLand(state, landId) {
+  return state.lands.find(land => land.id === landId) || null;
+}
+
+function findArea(state, areaId) {
+  return state.areas.find(area => area.id === areaId) || null;
+}
+
+function getSquareById(squareId) {
+  return MAP_SQUARES.find(square => square.id === squareId) || null;
+}
+
+function getLandDefById(landId) {
+  return LAND_DEFS[landId] || null;
+}
+
+function isAreaMonopoly(state, playerId, areaId) {
+  const areaLands = state.lands.filter(land => land.areaId === areaId);
+
+  if (areaLands.length === 0) {
+    return false;
+  }
+
+  return areaLands.every(land => land.ownerId === playerId);
+}
+
+function changeAreaStockPrice(state, areaId, delta) {
+  const area = findArea(state, areaId);
+  if (!area) return;
+
+  const floor = getStockFloor(area.initialStockPrice);
+  area.stockPrice = Math.max(floor, area.stockPrice + delta);
+}
+
+function getOwnerName(state, ownerId) {
+  const owner = findPlayer(state, ownerId);
+  return owner ? owner.name : "不明";
+}
+
+function getLandDisplayName(land) {
+  return land ? land.name : "土地";
+}
+
+function getAdditionalInvestmentLimit(state, playerId, land) {
+  const limit = calculateInvestmentLimit(state, playerId, land);
+  return Math.max(0, limit - land.investment);
+}
+
+function normalizeInvestmentAmount(value) {
+  const raw = Number(value);
+
+  if (!Number.isFinite(raw)) {
+    return 0;
+  }
+
+  return Math.floor(raw / 100) * 100;
+}
 
 function getCurrentPlayer(state) {
   if (!state || !state.players || state.players.length === 0) return null;
