@@ -2952,6 +2952,114 @@ async function resolveInvestSkipOnline() {
   await saveGameStateOnline(nextState);
 }    
 
+async function resolveStockTradeOnline(mode) {
+  if (!currentGameState) return;
+
+  if (!isMyTurn()) {
+    alert("現在はあなたの手番ではありません。");
+    return;
+  }
+
+  const action = currentGameState.pendingAction;
+
+  if (!action || action.type !== "stock_trade") {
+    alert("株取引の処理待ちではありません。");
+    return;
+  }
+
+  const nextState = cloneState(currentGameState);
+  const player = findPlayer(nextState, action.playerId);
+
+  if (!player) {
+    alert("プレイヤー情報が見つかりません。");
+    return;
+  }
+
+  if (mode === "skip") {
+    nextState.logs.push(`${player.name} は株取引を行いませんでした。`);
+    nextState.pendingAction = null;
+    processNextQueuedAction(nextState);
+    await saveGameStateOnline(nextState);
+    return;
+  }
+
+  const areaSelect = document.getElementById("stockAreaSelect");
+  const amountInput = document.getElementById("stockAmountInput");
+
+  const areaId = areaSelect ? areaSelect.value : "";
+  const amount = Number(amountInput ? amountInput.value : 0);
+
+  if (!areaId) {
+    alert("エリアを選択してください。");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0 || amount % 10 !== 0) {
+    alert("株数は10株単位で入力してください。");
+    return;
+  }
+
+  const area = findArea(nextState, areaId);
+
+  if (!area) {
+    alert("エリア情報が見つかりません。");
+    return;
+  }
+
+  if (!area.stocks[player.id]) {
+    area.stocks[player.id] = 0;
+  }
+
+  if (mode === "buy") {
+    const cost = getStockBuyPrice(area, amount);
+
+    if (player.money < cost) {
+      alert(`現金が不足しています。必要額は ${formatMoney(cost)} です。`);
+      return;
+    }
+
+    player.money -= cost;
+    area.stocks[player.id] += amount;
+
+    const increase = increaseAreaStockPriceByBuy(area);
+
+    nextState.logs.push(
+      `${player.name} は ${area.name} の株を ${amount}株、${formatMoney(cost)} で購入しました。`
+    );
+    nextState.logs.push(
+      `${area.name} の株価が ${formatMoney(increase)} 上がり、${formatMoney(area.stockPrice)} になりました。`
+    );
+  }
+
+  if (mode === "sell") {
+    const owned = area.stocks[player.id] || 0;
+
+    if (owned < amount) {
+      alert(`保有株数が不足しています。現在の保有株は ${owned}株です。`);
+      return;
+    }
+
+    const revenue = getStockSellPrice(area, amount);
+
+    area.stocks[player.id] -= amount;
+    player.money += revenue;
+
+    decreaseAreaStockPriceBySell(area, amount);
+
+    nextState.logs.push(
+      `${player.name} は ${area.name} の株を ${amount}株売却し、${formatMoney(revenue)} を得ました。`
+    );
+    nextState.logs.push(
+      `${area.name} の株価が ${formatMoney(area.stockPrice)} になりました。`
+    );
+  }
+
+  nextState.pendingAction = null;
+  processNextQueuedAction(nextState);
+
+  await saveGameStateOnline(nextState);
+}    
+    
 function renderBuyLandAction(panel, action) {
   const land = findLand(currentGameState, action.landId);
   const player = findPlayer(currentGameState, action.playerId);
