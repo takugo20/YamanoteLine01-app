@@ -2309,6 +2309,65 @@ function changeAreaStockPrice(state, areaId, delta) {
   area.stockPrice = Math.max(floor, area.stockPrice + delta);
 }
 
+function getTotalStockCount(state, playerId) {
+  return state.areas.reduce((sum, area) => {
+    return sum + (area.stocks[playerId] || 0);
+  }, 0);
+}
+
+function calculateDividend(state, playerId) {
+  return getTotalStockCount(state, playerId) * 1;
+}
+
+function calculateSettlementIncome(state, playerId) {
+  const player = findPlayer(state, playerId);
+  if (!player) return 200;
+
+  const totalAssets = calculateTotalAssets(state, playerId);
+  const settlementBonus = player.settlementCount * 100;
+
+  return Math.max(200, Math.floor(200 + totalAssets * 0.05 + settlementBonus));
+}
+
+function hasReachedTargetAssets(state, playerId) {
+  const targetAssets = state.settings?.targetAssets || 50000;
+  return calculateTotalAssets(state, playerId) >= targetAssets;
+}
+
+function getAreaLandOwnershipText(state, areaId) {
+  const lands = state.lands.filter(land => land.areaId === areaId);
+
+  return lands.map(land => {
+    if (!land.ownerId) {
+      return `${land.name}:未所有`;
+    }
+
+    const owner = findPlayer(state, land.ownerId);
+    return `${land.name}:${owner ? owner.name : "不明"}`;
+  }).join(" / ");
+}
+
+function getStockBuyPrice(area, amount) {
+  return area.stockPrice * amount;
+}
+
+function getStockSellPrice(area, amount) {
+  return area.stockPrice * amount;
+}
+
+function decreaseAreaStockPriceBySell(area, amount) {
+  const decrease = Math.floor(amount / 10);
+  const floor = getStockFloor(area.initialStockPrice);
+  area.stockPrice = Math.max(floor, area.stockPrice - decrease);
+}
+
+function increaseAreaStockPriceByBuy(area) {
+  const areaDef = getAreaById(area.id);
+  const increase = areaDef && areaDef.growthType === "fast" ? 2 : 1;
+  area.stockPrice += increase;
+  return increase;
+}
+
 function getOwnerName(state, ownerId) {
   const owner = findPlayer(state, ownerId);
   return owner ? owner.name : "不明";
