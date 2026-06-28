@@ -2121,18 +2121,24 @@ async function startOnlineGame() {
     /************************************************************
      * 初期化
      ************************************************************/
+function init() {
+  document.title = GAME_TITLE;
 
-    function init() {
-      document.title = GAME_TITLE;
-      document.getElementById("playerCount").addEventListener("change", renderPlayerForms);
-      document.getElementById("createStateButton").addEventListener("click", renderInitialStatePreview);
+  document.getElementById("playerCount").addEventListener("change", renderPlayerForms);
+  document.getElementById("createStateButton").addEventListener("click", renderInitialStatePreview);
 
-      renderPlayerForms();
-      renderBoard();
-      renderAreas();
-    }
+  document.getElementById("saveSupabaseButton").addEventListener("click", saveSupabaseConfig);
+  document.getElementById("createRoomButton").addEventListener("click", createRoomOnline);
+  document.getElementById("joinRoomButton").addEventListener("click", joinRoomOnline);
+  document.getElementById("startGameButton").addEventListener("click", startOnlineGame);
 
-    init();
+  renderPlayerForms();
+  renderBoard();
+  renderAreas();
+  setupSupabaseClient();
+}
+
+init();
   </script>
 </body>
 </html>
