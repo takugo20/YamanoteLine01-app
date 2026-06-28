@@ -2563,6 +2563,158 @@ function payLandToll(nextState, visitor, land) {
   }
 }
 
+async function resolveBuyLandOnline(shouldBuy) {
+  if (!currentGameState) return;
+
+  if (!isMyTurn()) {
+    alert("現在はあなたの手番ではありません。");
+    return;
+  }
+
+  const action = currentGameState.pendingAction;
+
+  if (!action || action.type !== "buy_land") {
+    alert("土地購入の処理待ちではありません。");
+    return;
+  }
+
+  const nextState = cloneState(currentGameState);
+  const player = findPlayer(nextState, action.playerId);
+  const land = findLand(nextState, action.landId);
+
+  if (!player || !land) {
+    alert("プレイヤーまたは土地情報が見つかりません。");
+    return;
+  }
+
+  if (shouldBuy) {
+    if (land.ownerId) {
+      nextState.logs.push(`${land.name} はすでに所有されています。`);
+    } else if (player.money < land.price) {
+      nextState.logs.push(`${player.name} は現金不足のため ${land.name} を購入できませんでした。`);
+    } else {
+      player.money -= land.price;
+      land.ownerId = player.id;
+      land.value = land.price;
+      land.investment = land.investment || 0;
+
+      changeAreaStockPrice(nextState, land.areaId, 1);
+
+      nextState.logs.push(
+        `${player.name} は ${land.name} を ${formatMoney(land.price)} で購入しました。`
+      );
+      nextState.logs.push(`${land.name} のエリア株価が ${formatMoney(1)} 上がりました。`);
+    }
+  } else {
+    nextState.logs.push(`${player.name} は ${land.name} を購入しませんでした。`);
+  }
+
+  nextState.pendingAction = null;
+  nextState.phase = "after_roll";
+
+  await saveGameStateOnline(nextState);
+}
+
+async function resolveInvestLandOnline(rawAmount) {
+  if (!currentGameState) return;
+
+  if (!isMyTurn()) {
+    alert("現在はあなたの手番ではありません。");
+    return;
+  }
+
+  const action = currentGameState.pendingAction;
+
+  if (!action || action.type !== "invest_land") {
+    alert("増資の処理待ちではありません。");
+    return;
+  }
+
+  const amount = normalizeInvestmentAmount(rawAmount);
+
+  if (amount <= 0) {
+    alert("増資額は100万円以上、100万円単位で入力してください。");
+    return;
+  }
+
+  const nextState = cloneState(currentGameState);
+  const player = findPlayer(nextState, action.playerId);
+  const land = findLand(nextState, action.landId);
+
+  if (!player || !land) {
+    alert("プレイヤーまたは土地情報が見つかりません。");
+    return;
+  }
+
+  if (land.ownerId !== player.id) {
+    alert("この土地は自分の土地ではありません。");
+    return;
+  }
+
+  const remaining = getAdditionalInvestmentLimit(nextState, player.id, land);
+
+  if (amount > remaining) {
+    alert(`増資上限を超えています。追加可能額は ${formatMoney(remaining)} です。`);
+    return;
+  }
+
+  if (amount > player.money) {
+    alert("現金が不足しています。");
+    return;
+  }
+
+  player.money -= amount;
+  land.investment += amount;
+  land.value += amount;
+
+  const stockIncrease = Math.floor(amount / 100);
+  changeAreaStockPrice(nextState, land.areaId, stockIncrease);
+
+  nextState.logs.push(
+    `${player.name} は ${land.name} に ${formatMoney(amount)} 増資しました。`
+  );
+  nextState.logs.push(
+    `${land.name} の土地価値が ${formatMoney(land.value)} になりました。`
+  );
+  nextState.logs.push(
+    `${land.name} のエリア株価が ${formatMoney(stockIncrease)} 上がりました。`
+  );
+
+  nextState.pendingAction = null;
+  nextState.phase = "after_roll";
+
+  await saveGameStateOnline(nextState);
+}
+
+async function resolveInvestSkipOnline() {
+  if (!currentGameState) return;
+
+  if (!isMyTurn()) {
+    alert("現在はあなたの手番ではありません。");
+    return;
+  }
+
+  const action = currentGameState.pendingAction;
+
+  if (!action || action.type !== "invest_land") {
+    alert("増資の処理待ちではありません。");
+    return;
+  }
+
+  const nextState = cloneState(currentGameState);
+  const player = findPlayer(nextState, action.playerId);
+  const land = findLand(nextState, action.landId);
+
+  if (player && land) {
+    nextState.logs.push(`${player.name} は ${land.name} に増資しませんでした。`);
+  }
+
+  nextState.pendingAction = null;
+  nextState.phase = "after_roll";
+
+  await saveGameStateOnline(nextState);
+}    
+
 function renderBuyLandAction(panel, action) {
   const land = findLand(currentGameState, action.landId);
   const player = findPlayer(currentGameState, action.playerId);
