@@ -2583,6 +2583,131 @@ function renderActionButtons() {
   `;
 }
 
+function buildMoveActionQueue(passedSquares, endPosition) {
+  const queue = [];
+
+  for (const squareId of passedSquares) {
+    const square = getSquareById(squareId);
+    if (!square) continue;
+
+    if (square.type === "settlement") {
+      queue.push({
+        type: "settlement",
+        squareId,
+        sourceName: square.name
+      });
+    }
+
+    if (square.type === "stock_exchange") {
+      queue.push({
+        type: "stock_trade",
+        squareId,
+        sourceName: square.name
+      });
+    }
+  }
+
+  queue.push({
+    type: "arrival",
+    squareId: endPosition
+  });
+
+  return queue;
+}
+
+function processNextQueuedAction(nextState) {
+  if (!nextState.actionQueue) {
+    nextState.actionQueue = [];
+  }
+
+  if (nextState.status === "game_over") {
+    nextState.pendingAction = null;
+    nextState.phase = "game_over";
+    nextState.actionQueue = [];
+    return;
+  }
+
+  if (nextState.actionQueue.length === 0) {
+    nextState.pendingAction = null;
+    nextState.phase = "after_roll";
+    return;
+  }
+
+  const action = nextState.actionQueue.shift();
+  const player = getCurrentPlayer(nextState);
+
+  if (!player) {
+    nextState.pendingAction = null;
+    nextState.phase = "after_roll";
+    return;
+  }
+
+  if (action.type === "settlement") {
+    executeSettlement(nextState, player, action.sourceName);
+
+    if (nextState.status === "game_over") {
+      return;
+    }
+
+    nextState.pendingAction = {
+      type: "stock_trade",
+      playerId: player.id,
+      source: "settlement",
+      sourceName: "決算マス"
+    };
+    nextState.phase = "stock_decision";
+    return;
+  }
+
+  if (action.type === "stock_trade") {
+    nextState.pendingAction = {
+      type: "stock_trade",
+      playerId: player.id,
+      source: "stock_exchange",
+      sourceName: action.sourceName || "証券取引所"
+    };
+    nextState.phase = "stock_decision";
+    return;
+  }
+
+  if (action.type === "arrival") {
+    processArrivalSquare(nextState, player);
+    return;
+  }
+
+  processNextQueuedAction(nextState);
+}
+
+function executeSettlement(nextState, player, sourceName) {
+  const income = calculateSettlementIncome(nextState, player.id);
+  const dividend = calculateDividend(nextState, player.id);
+
+  player.money += income;
+  player.money += dividend;
+  player.settlementCount += 1;
+
+  nextState.logs.push(
+    `${player.name} は ${sourceName || "決算マス"} を通過し、決算収入 ${formatMoney(income)} を受け取りました。`
+  );
+
+  if (dividend > 0) {
+    nextState.logs.push(
+      `${player.name} は株配当 ${formatMoney(dividend)} を受け取りました。`
+    );
+  }
+
+  if (hasReachedTargetAssets(nextState, player.id)) {
+    nextState.status = "game_over";
+    nextState.phase = "game_over";
+    nextState.winnerId = player.id;
+    nextState.pendingAction = null;
+    nextState.actionQueue = [];
+    nextState.logs.push(
+      `${player.name} が目標資産に到達し、決算マス通過により勝利しました。`
+    );
+  }
+}
+    
 function processArrivalSquare(nextState, player) {
   const square = getSquareById(player.position);
 
