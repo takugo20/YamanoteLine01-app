@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>山手線ゲーム</title>
+
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --money: #047857;
+      --shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    input,
+    select {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--text);
+      width: 100%;
+    }
+
+    .app {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 14px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .game-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .small-text {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr 290px;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    .panel-title {
+      font-weight: 800;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .form-row {
+      margin-bottom: 10px;
+    }
+
+    .form-row label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .player-form-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .player-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      background: #fafafa;
+    }
+
+    .player-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .color-chip {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px var(--border);
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .board-wrap {
+      overflow: auto;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(72px, 1fr));
+      gap: 6px;
+      min-width: 760px;
+    }
+
+    .square {
+      min-height: 72px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .square-no {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .square-name {
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+      word-break: keep-all;
+    }
+
+    .square-type {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .land-price {
+      font-size: 10px;
+      color: var(--money);
+      font-weight: 700;
+    }
+
+    .square.land {
+      border-left: 5px solid #9ca3af;
+    }
+
+    .square.settlement {
+      background: #fff7ed;
+      border-color: #fb923c;
+    }
+
+    .square.stock_exchange {
+      background: #eff6ff;
+      border-color: #60a5fa;
+    }
+
+    .square.bank {
+      background: #ecfdf5;
+      border-color: #34d399;
+    }
+
+    .square.card {
+      background: #f5f3ff;
+      border-color: #a78bfa;
+    }
+
+    .square.event {
+      background: #fef2f2;
+      border-color: #f87171;
+    }
+
+    .square.airport {
+      background: #f0f9ff;
+      border-color: #38bdf8;
+    }
+
+    .square.hotel {
+      background: #fdf2f8;
+      border-color: #f472b6;
+    }
+
+    .square.tax {
+      background: #fefce8;
+      border-color: #facc15;
+    }
+
+    .square.jail {
+      background: #f3f4f6;
+      border-color: #6b7280;
+    }
+
+    .square.spy {
+      background: #faf5ff;
+      border-color: #c084fc;
+    }
+
+    .square.contribution {
+      background: #ecfeff;
+      border-color: #22d3ee;
+    }
+
+    .area-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .area-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      background: #fafafa;
+    }
+
+    .area-title {
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .area-meta {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .notice {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+
+    .data-preview {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 10px;
+      border-radius: 10px;
+      overflow: auto;
+      max-height: 280px;
+      white-space: pre;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .board {
+        grid-template-columns: repeat(5, minmax(72px, 1fr));
+        min-width: 380px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="top-bar">
+      <div>
+        <div class="game-title">山手線ゲーム</div>
+        <div class="small-text">山手線マップ・通信対戦型 経済すごろく</div>
+      </div>
+      <div class="small-text" id="buildInfo">Part 1: データ定義</div>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-title">ゲーム設定</div>
+
+        <div class="notice">
+          これは開発用の初期版です。<br>
+          まずはマップ・土地・エリア・カード・初期状態の定義を確認します。
+        </div>
+
+        <div class="form-row">
+          <label for="playerCount">プレイ人数</label>
+          <select id="playerCount">
+            <option value="2">2人</option>
+            <option value="3">3人</option>
+            <option value="4" selected>4人</option>
+            <option value="5">5人</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label for="targetAssets">目標資産</label>
+          <select id="targetAssets">
+            <option value="10000">短時間：1億円</option>
+            <option value="50000" selected>標準：5億円</option>
+            <option value="100000">長時間：10億円</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>プレイヤー</label>
+          <div id="playerForms" class="player-form-grid"></div>
+        </div>
+
+        <button id="createStateButton">初期ゲーム状態を作成</button>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">マップ</div>
+        <div class="board-wrap">
+          <div id="board" class="board"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">データ確認</div>
+        <div id="areaList" class="area-list"></div>
+
+        <div style="height: 12px;"></div>
+
+        <div class="panel-title">初期状態プレビュー</div>
+        <pre id="statePreview" class="data-preview">まだ作成されていません。</pre>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    /************************************************************
+     * 山手線ゲーム Part 1
+     * - 定数定義
+     * - マップ定義
+     * - エリア定義
+     * - 土地定義
+     * - カード定義
+     * - イベント定義
+     * - 初期ゲーム状態生成
+     ************************************************************/
+
+    const GAME_TITLE = "山手線ゲーム";
+    const BOARD_SIZE = 50;
+    const INITIAL_MONEY = 1000;
+
+    const TARGET_ASSET_OPTIONS = {
+      short: 10000,
+      normal: 50000,
+      long: 100000
+    };
+
+    const PLAYER_COLOR_DEFS = [
+      { id: "red", name: "赤", value: "#ef4444" },
+      { id: "blue", name: "青", value: "#3b82f6" },
+      { id: "green", name: "緑", value: "#22c55e" },
+      { id: "yellow", name: "黄", value: "#eab308" },
+      { id: "purple", name: "紫", value: "#a855f7" }
+    ];
+
+    const SQUARE_TYPE_LABELS = {
+      settlement: "決算",
+      land: "土地",
+      event: "イベント",
+      bank: "銀行",
+      card: "カード",
+      hotel: "ホテル",
+      jail: "刑務所",
+      airport: "空港",
+      stock_exchange: "証券",
+      spy: "スパイ",
+      contribution: "国際貢献",
+      tax: "税務署"
+    };
+
+    const AREA_DEFS = [
+      {
+        id: "central",
+        name: "都心金融エリア",
+        initialStockPrice: 30,
+        growthType: "normal",
+        description: "高価格・証券向き"
+      },
+      {
+        id: "akiba_ueno",
+        name: "電気街・上野エリア",
+        initialStockPrice: 22,
+        growthType: "normal",
+        description: "イベント性高め"
+      },
+      {
+        id: "northeast",
+        name: "下町・北東エリア",
+        initialStockPrice: 14,
+        growthType: "normal",
+        description: "低価格・独占向き"
+      },
+      {
+        id: "ikebukuro",
+        name: "文教・池袋エリア",
+        initialStockPrice: 23,
+        growthType: "normal",
+        description: "バランス型"
+      },
+      {
+        id: "shintoshin",
+        name: "副都心エリア",
+        initialStockPrice: 26,
+        growthType: "normal",
+        description: "高額・高収益"
+      },
+      {
+        id: "youth",
+        name: "若者文化エリア",
+        initialStockPrice: 24,
+        growthType: "fast",
+        description: "株価が伸びやすい"
+      },
+      {
+        id: "south_business",
+        name: "城南ビジネスエリア",
+        initialStockPrice: 25,
+        growthType: "normal",
+        description: "安定収益"
+      },
+      {
+        id: "bay",
+        name: "湾岸再開発エリア",
+        initialStockPrice: 18,
+        growthType: "fast",
+        description: "増資向き・株価が伸びやすい"
+      }
+    ];
+
+    const LAND_DEFS = {
+      tokyo: {
+        id: "tokyo",
+        name: "東京",
+        areaId: "central",
+        price: 900,
+        baseToll: 220,
+        isPrime: true
+      },
+      kanda: {
+        id: "kanda",
+        name: "神田",
+        areaId: "central",
+        price: 350,
+        baseToll: 80,
+        isPrime: false
+      },
+      shimbashi: {
+        id: "shimbashi",
+        name: "新橋",
+        areaId: "central",
+        price: 450,
+        baseToll: 110,
+        isPrime: false
+      },
+      yurakucho: {
+        id: "yurakucho",
+        name: "有楽町",
+        areaId: "central",
+        price: 500,
+        baseToll: 125,
+        isPrime: false
+      },
+
+      akihabara: {
+        id: "akihabara",
+        name: "秋葉原",
+        areaId: "akiba_ueno",
+        price: 650,
+        baseToll: 160,
+        isPrime: true
+      },
+      okachimachi: {
+        id: "okachimachi",
+        name: "御徒町",
+        areaId: "akiba_ueno",
+        price: 250,
+        baseToll: 60,
+        isPrime: false
+      },
+      ueno: {
+        id: "ueno",
+        name: "上野",
+        areaId: "akiba_ueno",
+        price: 420,
+        baseToll: 100,
+        isPrime: false
+      },
+      uguisudani: {
+        id: "uguisudani",
+        name: "鶯谷",
+        areaId: "akiba_ueno",
+        price: 180,
+        baseToll: 40,
+        isPrime: false
+      },
+
+      nippori: {
+        id: "nippori",
+        name: "日暮里",
+        areaId: "northeast",
+        price: 400,
+        baseToll: 95,
+        isPrime: true
+      },
+      nishi_nippori: {
+        id: "nishi_nippori",
+        name: "西日暮里",
+        areaId: "northeast",
+        price: 180,
+        baseToll: 40,
+        isPrime: false
+      },
+      tabata: {
+        id: "tabata",
+        name: "田端",
+        areaId: "northeast",
+        price: 160,
+        baseToll: 35,
+        isPrime: false
+      },
+      komagome: {
+        id: "komagome",
+        name: "駒込",
+        areaId: "northeast",
+        price: 220,
+        baseToll: 50,
+        isPrime: false
+      },
+
+      sugamo: {
+        id: "sugamo",
+        name: "巣鴨",
+        areaId: "ikebukuro",
+        price: 220,
+        baseToll: 50,
+        isPrime: false
+      },
+      otsuka: {
+        id: "otsuka",
+        name: "大塚",
+        areaId: "ikebukuro",
+        price: 240,
+        baseToll: 55,
+        isPrime: false
+      },
+      ikebukuro: {
+        id: "ikebukuro",
+        name: "池袋",
+        areaId: "ikebukuro",
+        price: 750,
+        baseToll: 180,
+        isPrime: true
+      },
+      mejiro: {
+        id: "mejiro",
+        name: "目白",
+        areaId: "ikebukuro",
+        price: 300,
+        baseToll: 70,
+        isPrime: false
+      },
+
+      takadanobaba: {
+        id: "takadanobaba",
+        name: "高田馬場",
+        areaId: "shintoshin",
+        price: 380,
+        baseToll: 90,
+        isPrime: false
+      },
+      shin_okubo: {
+        id: "shin_okubo",
+        name: "新大久保",
+        areaId: "shintoshin",
+        price: 320,
+        baseToll: 75,
+        isPrime: false
+      },
+      shinjuku: {
+        id: "shinjuku",
+        name: "新宿",
+        areaId: "shintoshin",
+        price: 950,
+        baseToll: 240,
+        isPrime: true
+      },
+      yoyogi: {
+        id: "yoyogi",
+        name: "代々木",
+        areaId: "shintoshin",
+        price: 300,
+        baseToll: 70,
+        isPrime: false
+      },
+
+      harajuku: {
+        id: "harajuku",
+        name: "原宿",
+        areaId: "youth",
+        price: 500,
+        baseToll: 125,
+        isPrime: false
+      },
+      shibuya: {
+        id: "shibuya",
+        name: "渋谷",
+        areaId: "youth",
+        price: 900,
+        baseToll: 230,
+        isPrime: true
+      },
+      ebisu: {
+        id: "ebisu",
+        name: "恵比寿",
+        areaId: "youth",
+        price: 650,
+        baseToll: 160,
+        isPrime: false
+      },
+
+      meguro: {
+        id: "meguro",
+        name: "目黒",
+        areaId: "south_business",
+        price: 420,
+        baseToll: 100,
+        isPrime: false
+      },
+      gotanda: {
+        id: "gotanda",
+        name: "五反田",
+        areaId: "south_business",
+        price: 350,
+        baseToll: 85,
+        isPrime: false
+      },
+      osaki: {
+        id: "osaki",
+        name: "大崎",
+        areaId: "south_business",
+        price: 400,
+        baseToll: 95,
+        isPrime: false
+      },
+      shinagawa: {
+        id: "shinagawa",
+        name: "品川",
+        areaId: "south_business",
+        price: 850,
+        baseToll: 210,
+        isPrime: true
+      },
+
+      takanawa_gateway: {
+        id: "takanawa_gateway",
+        name: "高輪ゲートウェイ",
+        areaId: "bay",
+        price: 700,
+        baseToll: 170,
+        isPrime: true
+      },
+      tamachi: {
+        id: "tamachi",
+        name: "田町",
+        areaId: "bay",
+        price: 320,
+        baseToll: 75,
+        isPrime: false
+      },
+      hamamatsucho: {
+        id: "hamamatsucho",
+        name: "浜松町",
+        areaId: "bay",
+        price: 500,
+        baseToll: 120,
+        isPrime: false
+      }
+    };
+
+    const MAP_SQUARES = [
+      { id: 0, name: "決算マス", type: "settlement" },
+      { id: 1, name: "東京", type: "land", landId: "tokyo" },
+      { id: 2, name: "丸の内イベントマス", type: "event" },
+      { id: 3, name: "神田", type: "land", landId: "kanda" },
+      { id: 4, name: "大手町銀行", type: "bank" },
+      { id: 5, name: "秋葉原", type: "land", landId: "akihabara" },
+      { id: 6, name: "電気街カードマス", type: "card" },
+      { id: 7, name: "御徒町", type: "land", landId: "okachimachi" },
+      { id: 8, name: "上野", type: "land", landId: "ueno" },
+      { id: 9, name: "上野ホテル", type: "hotel" },
+      { id: 10, name: "鶯谷", type: "land", landId: "uguisudani" },
+      { id: 11, name: "下町イベントマス", type: "event" },
+      { id: 12, name: "日暮里", type: "land", landId: "nippori" },
+      { id: 13, name: "西日暮里", type: "land", landId: "nishi_nippori" },
+      { id: 14, name: "刑務所マス", type: "jail" },
+      { id: 15, name: "田端", type: "land", landId: "tabata" },
+      { id: 16, name: "駒込", type: "land", landId: "komagome" },
+      { id: 17, name: "文教カードマス", type: "card" },
+      { id: 18, name: "巣鴨", type: "land", landId: "sugamo" },
+      { id: 19, name: "大塚", type: "land", landId: "otsuka" },
+      { id: 20, name: "池袋空港マス", type: "airport" },
+      { id: 21, name: "池袋", type: "land", landId: "ikebukuro" },
+      { id: 22, name: "池袋銀行", type: "bank" },
+      { id: 23, name: "目白", type: "land", landId: "mejiro" },
+      { id: 24, name: "高田馬場", type: "land", landId: "takadanobaba" },
+      { id: 25, name: "新宿証券取引所", type: "stock_exchange" },
+      { id: 26, name: "新大久保", type: "land", landId: "shin_okubo" },
+      { id: 27, name: "新宿", type: "land", landId: "shinjuku" },
+      { id: 28, name: "スパイマス", type: "spy" },
+      { id: 29, name: "代々木", type: "land", landId: "yoyogi" },
+      { id: 30, name: "原宿", type: "land", landId: "harajuku" },
+      { id: 31, name: "トレンドカードマス", type: "card" },
+      { id: 32, name: "渋谷", type: "land", landId: "shibuya" },
+      { id: 33, name: "渋谷イベントマス", type: "event" },
+      { id: 34, name: "恵比寿", type: "land", landId: "ebisu" },
+      { id: 35, name: "恵比寿ホテル", type: "hotel" },
+      { id: 36, name: "目黒", type: "land", landId: "meguro" },
+      { id: 37, name: "五反田", type: "land", landId: "gotanda" },
+      { id: 38, name: "大崎", type: "land", landId: "osaki" },
+      { id: 39, name: "品川銀行", type: "bank" },
+      { id: 40, name: "品川", type: "land", landId: "shinagawa" },
+      { id: 41, name: "品川カードマス", type: "card" },
+      { id: 42, name: "高輪ゲートウェイ", type: "land", landId: "takanawa_gateway" },
+      { id: 43, name: "国際貢献マス", type: "contribution" },
+      { id: 44, name: "田町", type: "land", landId: "tamachi" },
+      { id: 45, name: "浜松町", type: "land", landId: "hamamatsucho" },
+      { id: 46, name: "浜松町空港マス", type: "airport" },
+      { id: 47, name: "芝税務署", type: "tax" },
+      { id: 48, name: "新橋", type: "land", landId: "shimbashi" },
+      { id: 49, name: "有楽町", type: "land", landId: "yurakucho" }
+    ];
+
+    const CARD_DEFS = [
+      {
+        id: "special",
+        name: "スペシャルカード",
+        rarity: "normal",
+        category: "move",
+        description: "次のルーレット結果を1〜6から選べる。"
+      },
+      {
+        id: "airport_warp",
+        name: "空港ワープカード",
+        rarity: "normal",
+        category: "move",
+        description: "任意の空港マスへ移動する。"
+      },
+      {
+        id: "express",
+        name: "急行カード",
+        rarity: "normal",
+        category: "move",
+        description: "ルーレットを2個振り、合計数進む。"
+      },
+      {
+        id: "income",
+        name: "臨時収入カード",
+        rarity: "normal",
+        category: "money",
+        description: "ターン数に応じた現金を得る。"
+      },
+      {
+        id: "tax_guard",
+        name: "税金回避カード",
+        rarity: "normal",
+        category: "money",
+        description: "次の税金支払いを無効化する。"
+      },
+      {
+        id: "skip",
+        name: "足止めカード",
+        rarity: "normal",
+        category: "attack",
+        description: "指定プレイヤーを1回休みにする。"
+      },
+
+      {
+        id: "limited_express",
+        name: "特急カード",
+        rarity: "rare",
+        category: "move",
+        description: "ルーレットを3個振り、合計数進む。"
+      },
+      {
+        id: "swap_position",
+        name: "場所替えカード",
+        rarity: "rare",
+        category: "move",
+        description: "誰かと場所を入れ替える。"
+      },
+      {
+        id: "free_toll",
+        name: "通行料無視カード",
+        rarity: "rare",
+        category: "money",
+        description: "次に他人の土地へ停止して発生する通行料を0円にする。特等地通過料には使えない。"
+      },
+      {
+        id: "dividend",
+        name: "配当カード",
+        rarity: "rare",
+        category: "money",
+        description: "保有株数に応じて収入を得る。"
+      },
+      {
+        id: "invest",
+        name: "増資カード",
+        rarity: "rare",
+        category: "land",
+        description: "自分の土地1つを選び、通常ルール通りに増資できる。"
+      },
+      {
+        id: "land_discount",
+        name: "土地割引カード",
+        rarity: "rare",
+        category: "land",
+        description: "止まった未所有土地を10分の1の価格で買える。"
+      },
+      {
+        id: "stock_up",
+        name: "株価上昇カード",
+        rarity: "rare",
+        category: "stock",
+        description: "指定エリアの株価を+5万円する。"
+      },
+      {
+        id: "stock_down",
+        name: "株価下落カード",
+        rarity: "rare",
+        category: "stock",
+        description: "指定エリアの株価を-5万円する。株価下限未満にはならない。"
+      },
+      {
+        id: "stock_discount",
+        name: "株購入優待カード",
+        rarity: "rare",
+        category: "stock",
+        description: "次の株購入を20%引きにする。"
+      },
+      {
+        id: "spy_dispatch",
+        name: "スパイ派遣カード",
+        rarity: "rare",
+        category: "attack",
+        description: "スパイを1体配置する。"
+      },
+
+      {
+        id: "rura",
+        name: "ルーラカード",
+        rarity: "super_rare",
+        category: "move",
+        description: "決算マスへ戻り、決算を受ける。"
+      },
+      {
+        id: "bullet_train",
+        name: "新幹線カード",
+        rarity: "super_rare",
+        category: "move",
+        description: "ルーレットを4個振り、合計数進む。"
+      },
+      {
+        id: "cash_swap",
+        name: "とっかえっこカード",
+        rarity: "super_rare",
+        category: "money",
+        description: "ランダムな相手と所持現金を入れ替える。"
+      },
+      {
+        id: "takeover",
+        name: "乗っ取りカード",
+        rarity: "super_rare",
+        category: "land",
+        description: "条件を満たすエリアの特等地を無料で乗っ取る。"
+      }
+    ];
+
+    const EVENT_DEFS = [
+      { id: "boom", name: "景気上昇", weight: 10, description: "全エリアの株価+2万円。" },
+      { id: "recession", name: "不景気", weight: 10, description: "全エリアの株価-2万円。株価下限未満にはならない。" },
+      { id: "event_income", name: "臨時収入", weight: 15, description: "現在プレイヤーが現金を得る。" },
+      { id: "event_expense", name: "出費", weight: 15, description: "現在プレイヤーが現金を支払う。" },
+      { id: "event_dividend", name: "配当金", weight: 10, description: "保有株数に応じて収入を得る。" },
+      { id: "land_value_up", name: "土地評価上昇", weight: 10, description: "自分の土地1つの価値+100万円。" },
+      { id: "stock_surge", name: "株価急騰", weight: 8, description: "ランダム1エリアの株価+10万円。" },
+      { id: "stock_drop", name: "株価下落", weight: 8, description: "ランダム1エリアの株価-10万円。株価下限未満にはならない。" },
+      { id: "spy_bust", name: "スパイ一斉摘発", weight: 7, description: "全スパイが消滅。" },
+      { id: "takeover_chance", name: "乗っ取りチャンス", weight: 7, description: "条件を満たす場合、特等地を乗っ取れる。" }
+    ];
+
+    /************************************************************
+     * クラス定義
+     * 保存時はプレーンオブジェクトにする。
+     ************************************************************/
+
+    class Player {
+      constructor(data) {
+        this.id = data.id;
+        this.name = data.name;
+        this.color = data.color;
+        this.colorValue = data.colorValue;
+        this.clientId = data.clientId || "";
+        this.money = data.money ?? INITIAL_MONEY;
+        this.position = data.position ?? 0;
+        this.cards = data.cards || [];
+        this.fame = data.fame || 0;
+        this.skipTurn = data.skipTurn || false;
+        this.bankrupt = data.bankrupt || false;
+        this.loanPrincipal = data.loanPrincipal || 0;
+        this.loanDue = data.loanDue || 0;
+        this.settlementCount = data.settlementCount || 0;
+      }
+
+      toJSON() {
+        return { ...this };
+      }
+    }
+
+    class Land {
+      constructor(def) {
+        this.id = def.id;
+        this.name = def.name;
+        this.areaId = def.areaId;
+        this.price = def.price;
+        this.baseToll = def.baseToll;
+        this.value = def.price;
+        this.investment = 0;
+        this.ownerId = null;
+        this.isPrime = def.isPrime;
+      }
+
+      toJSON() {
+        return { ...this };
+      }
+    }
+
+    class Area {
+      constructor(def, players) {
+        this.id = def.id;
+        this.name = def.name;
+        this.initialStockPrice = def.initialStockPrice;
+        this.stockPrice = def.initialStockPrice;
+        this.growthType = def.growthType;
+        this.description = def.description;
+        this.stocks = {};
+
+        for (const player of players) {
+          this.stocks[player.id] = 0;
+        }
+      }
+
+      toJSON() {
+        return { ...this, stocks: { ...this.stocks } };
+      }
+    }
+
+    /************************************************************
+     * 純粋関数・計算系
+     ************************************************************/
+
+    function formatMoney(value) {
+      const amount = Math.round(value);
+
+      if (amount >= 10000) {
+        const oku = Math.floor(amount / 10000);
+        const man = amount % 10000;
+
+        if (man === 0) {
+          return `${oku}億円`;
+        }
+
+        return `${oku}億${man}万円`;
+      }
+
+      return `${amount}万円`;
+    }
+
+    function getAreaById(areaId) {
+      return AREA_DEFS.find(area => area.id === areaId);
+    }
+
+    function getLandsByArea(areaId) {
+      return Object.values(LAND_DEFS).filter(land => land.areaId === areaId);
+    }
+
+    function getStockFloor(initialStockPrice) {
+      return Math.ceil(initialStockPrice * 0.5);
+    }
+
+    function getStockIncreaseByPurchase(areaId) {
+      const area = getAreaById(areaId);
+      return area && area.growthType === "fast" ? 2 : 1;
+    }
+
+    function calculateCurrentToll(land, isMonopoly) {
+      const normalToll = land.baseToll + Math.floor(land.investment * 0.3);
+      return isMonopoly ? normalToll * 2 : normalToll;
+    }
+
+    function calculatePrimePassFee(currentToll, isMonopoly) {
+      const rate = isMonopoly ? 0.1 : 0.05;
+      return Math.max(1, Math.round(currentToll * rate));
+    }
+
+    function getAreaOwnershipCount(state, playerId, areaId) {
+      return state.lands.filter(land => {
+        return land.areaId === areaId && land.ownerId === playerId;
+      }).length;
+    }
+
+    function getAreaLandCount(areaId) {
+      return getLandsByArea(areaId).length;
+    }
+
+    function calculateInvestmentLimit(state, playerId, land) {
+      const ownedCount = getAreaOwnershipCount(state, playerId, land.areaId);
+      const totalCount = getAreaLandCount(land.areaId);
+
+      if (totalCount === 4) {
+        if (ownedCount <= 1) return land.price * 3;
+        if (ownedCount === 2) return land.price * 4;
+        if (ownedCount === 3) return land.price * 5;
+        return land.price * 7;
+      }
+
+      if (totalCount === 3) {
+        if (ownedCount <= 1) return land.price * 3;
+        if (ownedCount === 2) return land.price * 5;
+        return land.price * 7;
+      }
+
+      return land.price * 3;
+    }
+
+    function calculateLandAssets(state, playerId) {
+      return state.lands
+        .filter(land => land.ownerId === playerId)
+        .reduce((sum, land) => sum + land.value, 0);
+    }
+
+    function calculateStockAssets(state, playerId) {
+      return state.areas.reduce((sum, area) => {
+        const count = area.stocks[playerId] || 0;
+        return sum + count * area.stockPrice;
+      }, 0);
+    }
+
+    function calculateTotalAssets(state, playerId) {
+      const player = state.players.find(p => p.id === playerId);
+      if (!player) return 0;
+
+      return (
+        player.money +
+        calculateLandAssets(state, playerId) +
+        calculateStockAssets(state, playerId) -
+        player.loanDue
+      );
+    }
+
+    function getPassedSquares(startPosition, steps) {
+      const passed = [];
+
+      for (let i = 1; i <= steps; i++) {
+        passed.push((startPosition + i) % BOARD_SIZE);
+      }
+
+      return passed;
+    }
+
+    /************************************************************
+     * 初期状態生成
+     ************************************************************/
+
+    function createInitialPlayers(playerInputs) {
+      return playerInputs.map((input, index) => {
+        const color = PLAYER_COLOR_DEFS[index] || PLAYER_COLOR_DEFS[0];
+
+        return new Player({
+          id: `player_${index + 1}`,
+          name: input.name || `プレイヤー${index + 1}`,
+          color: color.id,
+          colorValue: color.value,
+          clientId: input.clientId || "",
+          money: INITIAL_MONEY,
+          position: 0
+        }).toJSON();
+      });
+    }
+
+    function createInitialLands() {
+      return Object.values(LAND_DEFS).map(def => new Land(def).toJSON());
+    }
+
+    function createInitialAreas(players) {
+      return AREA_DEFS.map(def => new Area(def, players).toJSON());
+    }
+
+    function createInitialGameState(settings, playerInputs) {
+      const players = createInitialPlayers(playerInputs);
+      const lands = createInitialLands();
+      const areas = createInitialAreas(players);
+
+      return {
+        gameTitle: GAME_TITLE,
+        status: "playing",
+        phase: "before_roll",
+        roomCode: settings.roomCode || "",
+        settings: {
+          targetAssets: settings.targetAssets,
+          maxPlayers: players.length,
+          createdAt: new Date().toISOString()
+        },
+        turnCount: 1,
+        currentPlayerIndex: 0,
+        players,
+        lands,
+        areas,
+        spies: [],
+        pendingAction: null,
+        lastRoll: null,
+        winnerId: null,
+        logs: [
+          "ゲームを開始しました。"
+        ]
+      };
+    }
+
+    /************************************************************
+     * 画面描画
+     ************************************************************/
+
+    function renderPlayerForms() {
+      const count = Number(document.getElementById("playerCount").value);
+      const container = document.getElementById("playerForms");
+      container.innerHTML = "";
+
+      for (let i = 0; i < count; i++) {
+        const color = PLAYER_COLOR_DEFS[i];
+
+        const card = document.createElement("div");
+        card.className = "player-card";
+
+        card.innerHTML = `
+          <div class="player-card-head">
+            <span>プレイヤー${i + 1}</span>
+            <span>
+              <span class="color-chip" style="background:${color.value}"></span>
+              ${color.name}
+            </span>
+          </div>
+          <input
+            type="text"
+            id="playerName_${i}"
+            value="プレイヤー${i + 1}"
+            autocomplete="off"
+          />
+        `;
+
+        container.appendChild(card);
+      }
+    }
+
+    function renderBoard() {
+      const board = document.getElementById("board");
+      board.innerHTML = "";
+
+      for (const square of MAP_SQUARES) {
+        const el = document.createElement("div");
+        el.className = `square ${square.type}`;
+
+        let priceHtml = "";
+
+        if (square.type === "land") {
+          const land = LAND_DEFS[square.landId];
+          const area = getAreaById(land.areaId);
+          priceHtml = `
+            <div class="land-price">
+              ${formatMoney(land.price)} / 通行料 ${formatMoney(land.baseToll)}
+            </div>
+            <div class="square-type">${area.name}${land.isPrime ? "・特等地" : ""}</div>
+          `;
+          el.style.borderLeftColor = getAreaColor(land.areaId);
+        } else {
+          priceHtml = `<div class="square-type">${SQUARE_TYPE_LABELS[square.type] || square.type}</div>`;
+        }
+
+        el.innerHTML = `
+          <div class="square-no">No.${square.id}</div>
+          <div class="square-name">${square.name}</div>
+          ${priceHtml}
+        `;
+
+        board.appendChild(el);
+      }
+    }
+
+    function getAreaColor(areaId) {
+      const colorMap = {
+        central: "#f97316",
+        akiba_ueno: "#8b5cf6",
+        northeast: "#10b981",
+        ikebukuro: "#3b82f6",
+        shintoshin: "#ef4444",
+        youth: "#ec4899",
+        south_business: "#64748b",
+        bay: "#06b6d4"
+      };
+
+      return colorMap[areaId] || "#9ca3af";
+    }
+
+    function renderAreas() {
+      const container = document.getElementById("areaList");
+      container.innerHTML = "";
+
+      for (const area of AREA_DEFS) {
+        const lands = getLandsByArea(area.id);
+        const floor = getStockFloor(area.initialStockPrice);
+
+        const item = document.createElement("div");
+        item.className = "area-item";
+
+        item.innerHTML = `
+          <div class="area-title" style="color:${getAreaColor(area.id)}">${area.name}</div>
+          <div class="area-meta">
+            初期株価：${formatMoney(area.initialStockPrice)}<br>
+            株価下限：${formatMoney(floor)}<br>
+            成長：${area.growthType === "fast" ? "株価上昇しやすい" : "通常"}<br>
+            土地：${lands.map(land => land.name).join("、")}
+          </div>
+        `;
+
+        container.appendChild(item);
+      }
+    }
+
+    function collectPlayerInputs() {
+      const count = Number(document.getElementById("playerCount").value);
+      const result = [];
+
+      for (let i = 0; i < count; i++) {
+        const input = document.getElementById(`playerName_${i}`);
+        result.push({
+          name: input ? input.value.trim() : `プレイヤー${i + 1}`,
+          clientId: ""
+        });
+      }
+
+      return result;
+    }
+
+    function renderInitialStatePreview() {
+      const targetAssets = Number(document.getElementById("targetAssets").value);
+      const playerInputs = collectPlayerInputs();
+
+      const state = createInitialGameState(
+        {
+          targetAssets,
+          roomCode: "TEST"
+        },
+        playerInputs
+      );
+
+      document.getElementById("statePreview").textContent = JSON.stringify(state, null, 2);
+    }
+
+    /************************************************************
+     * 初期化
+     ************************************************************/
+
+    function init() {
+      document.title = GAME_TITLE;
+      document.getElementById("playerCount").addEventListener("change", renderPlayerForms);
+      document.getElementById("createStateButton").addEventListener("click", renderInitialStatePreview);
+
+      renderPlayerForms();
+      renderBoard();
+      renderAreas();
+    }
+
+    init();
+  </script>
+</body>
+</html>
