@@ -2722,15 +2722,18 @@ function processArrivalSquare(nextState, player) {
     return;
   }
 
+  if (square.type === "settlement" || square.type === "stock_exchange") {
+    nextState.phase = "after_roll";
+    nextState.pendingAction = null;
+    return;
+  }
+
   nextState.phase = "after_roll";
   nextState.pendingAction = null;
   nextState.logs.push(`${player.name} は ${square.name} に到着しました。`);
-
-  if (square.type !== "land") {
-    nextState.logs.push(`${square.name} の効果は後続実装で追加します。`);
-  }
+  nextState.logs.push(`${square.name} の効果は後続実装で追加します。`);
 }
-
+    
 function processArrivalLand(nextState, player, square) {
   const land = findLand(nextState, square.landId);
 
