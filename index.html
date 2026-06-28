@@ -1429,6 +1429,548 @@
     }
 
     /************************************************************
+ * Supabase通信・部屋作成・参加
+ ************************************************************/
+
+const SUPABASE_CONFIG_STORAGE_KEY = "yamanote_game_supabase_config";
+const CLIENT_ID_STORAGE_KEY = "yamanote_game_client_id";
+
+let supabaseClient = null;
+let currentRoom = null;
+let currentRoomPlayers = [];
+let currentRoomPlayer = null;
+let roomRealtimeChannel = null;
+
+function getClientId() {
+  let clientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+
+  if (!clientId) {
+    clientId = `client_${crypto.randomUUID()}`;
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
+  }
+
+  return clientId;
+}
+
+function loadSupabaseConfig() {
+  const raw = localStorage.getItem(SUPABASE_CONFIG_STORAGE_KEY);
+
+  if (!raw) {
+    return {
+      url: "",
+      anonKey: ""
+    };
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {
+      url: "",
+      anonKey: ""
+    };
+  }
+}
+
+function saveSupabaseConfig() {
+  const url = document.getElementById("supabaseUrl").value.trim();
+  const anonKey = document.getElementById("supabaseAnonKey").value.trim();
+
+  if (!url || !anonKey) {
+    alert("Supabase URL と anon key を入力してください。");
+    return;
+  }
+
+  localStorage.setItem(
+    SUPABASE_CONFIG_STORAGE_KEY,
+    JSON.stringify({
+      url,
+      anonKey
+    })
+  );
+
+  setupSupabaseClient();
+
+  alert("Supabase設定を保存しました。");
+}
+
+function setupSupabaseClient() {
+  const config = loadSupabaseConfig();
+
+  const urlInput = document.getElementById("supabaseUrl");
+  const keyInput = document.getElementById("supabaseAnonKey");
+
+  if (urlInput) urlInput.value = config.url || "";
+  if (keyInput) keyInput.value = config.anonKey || "";
+
+  if (!config.url || !config.anonKey) {
+    setConnectionStatus("通信：Supabase未設定");
+    return false;
+  }
+
+  if (!window.supabase || !window.supabase.createClient) {
+    setConnectionStatus("通信：Supabaseライブラリ未読込");
+    return false;
+  }
+
+  supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+  setConnectionStatus("通信：Supabase設定済み");
+
+  return true;
+}
+
+function setConnectionStatus(message) {
+  const el = document.getElementById("connectionStatus");
+  if (el) el.textContent = message;
+}
+
+function generateRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+
+  for (let i = 0; i < 5; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  return code;
+}
+
+function getLocalPlayerName() {
+  const input = document.getElementById("playerName_0");
+  const name = input ? input.value.trim() : "";
+
+  return name || "プレイヤー1";
+}
+
+function getColorDefById(colorId) {
+  return PLAYER_COLOR_DEFS.find(color => color.id === colorId) || PLAYER_COLOR_DEFS[0];
+}
+
+function getColorDefBySeatNo(seatNo) {
+  return PLAYER_COLOR_DEFS[seatNo - 1] || PLAYER_COLOR_DEFS[0];
+}
+
+async function createRoomOnline() {
+  if (!setupSupabaseClient()) return;
+
+  const roomCode = generateRoomCode();
+  const maxPlayers = Number(document.getElementById("playerCount").value);
+  const targetAssets = Number(document.getElementById("targetAssets").value);
+  const clientId = getClientId();
+  const playerName = getLocalPlayerName();
+  const color = getColorDefBySeatNo(1);
+
+  setConnectionStatus("通信：部屋作成中...");
+
+  const { data: room, error: roomError } = await supabaseClient
+    .from("rooms")
+    .insert({
+      room_code: roomCode,
+      status: "waiting",
+      settings: {
+        targetAssets,
+        maxPlayers,
+        gameTitle: GAME_TITLE
+      },
+      game_state: null,
+      state_version: 0,
+      current_player_index: 0,
+      phase: "waiting"
+    })
+    .select()
+    .single();
+
+  if (roomError) {
+    console.error(roomError);
+    alert("部屋作成に失敗しました。");
+    setConnectionStatus("通信：部屋作成失敗");
+    return;
+  }
+
+  const { data: player, error: playerError } = await supabaseClient
+    .from("room_players")
+    .insert({
+      room_id: room.id,
+      seat_no: 1,
+      name: playerName,
+      color: color.id,
+      is_host: true,
+      client_id: clientId,
+      connected: true
+    })
+    .select()
+    .single();
+
+  if (playerError) {
+    console.error(playerError);
+    alert("プレイヤー作成に失敗しました。");
+    setConnectionStatus("通信：プレイヤー作成失敗");
+    return;
+  }
+
+  const { error: updateError } = await supabaseClient
+    .from("rooms")
+    .update({
+      host_player_id: player.id
+    })
+    .eq("id", room.id);
+
+  if (updateError) {
+    console.error(updateError);
+    alert("ホスト情報の保存に失敗しました。");
+    return;
+  }
+
+  currentRoom = {
+    ...room,
+    host_player_id: player.id
+  };
+  currentRoomPlayer = player;
+
+  await subscribeToRoom(room.id);
+  await loadRoomState(room.id);
+
+  setConnectionStatus("通信：部屋を作成しました");
+}
+
+async function joinRoomOnline() {
+  if (!setupSupabaseClient()) return;
+
+  const input = document.getElementById("joinRoomCode");
+  const roomCode = input.value.trim().toUpperCase();
+  const clientId = getClientId();
+  const playerName = getLocalPlayerName();
+
+  if (!roomCode) {
+    alert("部屋コードを入力してください。");
+    return;
+  }
+
+  setConnectionStatus("通信：部屋参加中...");
+
+  const { data: room, error: roomError } = await supabaseClient
+    .from("rooms")
+    .select("*")
+    .eq("room_code", roomCode)
+    .single();
+
+  if (roomError || !room) {
+    console.error(roomError);
+    alert("部屋が見つかりません。");
+    setConnectionStatus("通信：部屋が見つかりません");
+    return;
+  }
+
+  if (room.status !== "waiting") {
+    alert("この部屋はすでにゲーム開始済みです。");
+    setConnectionStatus("通信：参加不可");
+    return;
+  }
+
+  const { data: players, error: playersError } = await supabaseClient
+    .from("room_players")
+    .select("*")
+    .eq("room_id", room.id)
+    .order("seat_no", { ascending: true });
+
+  if (playersError) {
+    console.error(playersError);
+    alert("参加者情報の取得に失敗しました。");
+    return;
+  }
+
+  const existing = players.find(player => player.client_id === clientId);
+
+  if (existing) {
+    currentRoom = room;
+    currentRoomPlayer = existing;
+
+    await subscribeToRoom(room.id);
+    await loadRoomState(room.id);
+
+    setConnectionStatus("通信：既存プレイヤーとして再参加しました");
+    return;
+  }
+
+  const maxPlayers = room.settings?.maxPlayers || 5;
+
+  if (players.length >= maxPlayers) {
+    alert("この部屋は満員です。");
+    setConnectionStatus("通信：満員");
+    return;
+  }
+
+  const usedSeatNos = new Set(players.map(player => player.seat_no));
+  let seatNo = 1;
+
+  while (usedSeatNos.has(seatNo)) {
+    seatNo++;
+  }
+
+  const color = getColorDefBySeatNo(seatNo);
+
+  const { data: joinedPlayer, error: joinError } = await supabaseClient
+    .from("room_players")
+    .insert({
+      room_id: room.id,
+      seat_no: seatNo,
+      name: playerName,
+      color: color.id,
+      is_host: false,
+      client_id: clientId,
+      connected: true
+    })
+    .select()
+    .single();
+
+  if (joinError) {
+    console.error(joinError);
+    alert("部屋への参加に失敗しました。");
+    setConnectionStatus("通信：参加失敗");
+    return;
+  }
+
+  currentRoom = room;
+  currentRoomPlayer = joinedPlayer;
+
+  await subscribeToRoom(room.id);
+  await loadRoomState(room.id);
+
+  setConnectionStatus("通信：部屋に参加しました");
+}
+
+async function subscribeToRoom(roomId) {
+  if (!supabaseClient) return;
+
+  if (roomRealtimeChannel) {
+    await supabaseClient.removeChannel(roomRealtimeChannel);
+    roomRealtimeChannel = null;
+  }
+
+  roomRealtimeChannel = supabaseClient
+    .channel(`room_${roomId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "rooms",
+        filter: `id=eq.${roomId}`
+      },
+      async () => {
+        await loadRoomState(roomId);
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "room_players",
+        filter: `room_id=eq.${roomId}`
+      },
+      async () => {
+        await loadRoomState(roomId);
+      }
+    )
+    .subscribe();
+}
+
+async function loadRoomState(roomId) {
+  if (!supabaseClient) return;
+
+  const { data: room, error: roomError } = await supabaseClient
+    .from("rooms")
+    .select("*")
+    .eq("id", roomId)
+    .single();
+
+  if (roomError) {
+    console.error(roomError);
+    setConnectionStatus("通信：部屋情報取得失敗");
+    return;
+  }
+
+  const { data: players, error: playersError } = await supabaseClient
+    .from("room_players")
+    .select("*")
+    .eq("room_id", roomId)
+    .order("seat_no", { ascending: true });
+
+  if (playersError) {
+    console.error(playersError);
+    setConnectionStatus("通信：参加者取得失敗");
+    return;
+  }
+
+  currentRoom = room;
+  currentRoomPlayers = players;
+
+  const clientId = getClientId();
+  currentRoomPlayer = players.find(player => player.client_id === clientId) || currentRoomPlayer;
+
+  renderWaitingRoom();
+
+  if (room.status === "playing" && room.game_state) {
+    document.getElementById("statePreview").textContent = JSON.stringify(room.game_state, null, 2);
+    setConnectionStatus("通信：ゲーム開始済み");
+  }
+}
+
+function renderWaitingRoom() {
+  const roomInfo = document.getElementById("roomInfo");
+  const roomCodeDisplay = document.getElementById("roomCodeDisplay");
+  const waitingPlayers = document.getElementById("waitingPlayers");
+  const startButton = document.getElementById("startGameButton");
+
+  if (!currentRoom) {
+    roomInfo.style.display = "none";
+    return;
+  }
+
+  roomInfo.style.display = "block";
+  roomCodeDisplay.textContent = `部屋コード：${currentRoom.room_code}`;
+
+  waitingPlayers.innerHTML = "";
+
+  const maxPlayers = currentRoom.settings?.maxPlayers || 5;
+
+  for (let i = 1; i <= maxPlayers; i++) {
+    const player = currentRoomPlayers.find(p => p.seat_no === i);
+    const color = getColorDefBySeatNo(i);
+
+    const row = document.createElement("div");
+    row.className = "waiting-player";
+
+    if (player) {
+      row.innerHTML = `
+        <span>
+          <span class="color-chip" style="background:${color.value}"></span>
+          ${player.name}
+          ${player.is_host ? '<span class="status-pill">ホスト</span>' : ""}
+        </span>
+        <span class="small-text">参加中</span>
+      `;
+    } else {
+      row.innerHTML = `
+        <span>
+          <span class="color-chip" style="background:${color.value}"></span>
+          空席
+        </span>
+        <span class="small-text">待機中</span>
+      `;
+    }
+
+    waitingPlayers.appendChild(row);
+  }
+
+  const isHost = currentRoomPlayer && currentRoomPlayer.id === currentRoom.host_player_id;
+  const isFull = currentRoomPlayers.length === maxPlayers;
+  const isWaiting = currentRoom.status === "waiting";
+
+  startButton.disabled = !(isHost && isFull && isWaiting);
+}
+
+function createGameStateFromRoom(room, players) {
+  const gamePlayers = players
+    .sort((a, b) => a.seat_no - b.seat_no)
+    .map(player => {
+      const colorDef = getColorDefById(player.color);
+
+      return new Player({
+        id: player.id,
+        name: player.name,
+        color: colorDef.id,
+        colorValue: colorDef.value,
+        clientId: player.client_id,
+        money: INITIAL_MONEY,
+        position: 0,
+        cards: [],
+        fame: 0,
+        skipTurn: false,
+        bankrupt: false,
+        loanPrincipal: 0,
+        loanDue: 0,
+        settlementCount: 0
+      }).toJSON();
+    });
+
+  const lands = createInitialLands();
+  const areas = createInitialAreas(gamePlayers);
+
+  return {
+    gameTitle: GAME_TITLE,
+    status: "playing",
+    phase: "before_roll",
+    roomCode: room.room_code,
+    settings: {
+      targetAssets: room.settings?.targetAssets || 50000,
+      maxPlayers: room.settings?.maxPlayers || gamePlayers.length,
+      createdAt: new Date().toISOString()
+    },
+    turnCount: 1,
+    currentPlayerIndex: 0,
+    players: gamePlayers,
+    lands,
+    areas,
+    spies: [],
+    pendingAction: null,
+    lastRoll: null,
+    winnerId: null,
+    logs: [
+      "ゲームを開始しました。"
+    ]
+  };
+}
+
+async function startOnlineGame() {
+  if (!currentRoom || !currentRoomPlayer) {
+    alert("部屋に参加していません。");
+    return;
+  }
+
+  const isHost = currentRoomPlayer.id === currentRoom.host_player_id;
+
+  if (!isHost) {
+    alert("ゲーム開始はホストのみ実行できます。");
+    return;
+  }
+
+  const maxPlayers = currentRoom.settings?.maxPlayers || 5;
+
+  if (currentRoomPlayers.length !== maxPlayers) {
+    alert("設定した人数がそろってから開始してください。");
+    return;
+  }
+
+  const gameState = createGameStateFromRoom(currentRoom, currentRoomPlayers);
+
+  const { data, error } = await supabaseClient
+    .from("rooms")
+    .update({
+      status: "playing",
+      phase: "before_roll",
+      current_player_index: 0,
+      game_state: gameState,
+      state_version: currentRoom.state_version + 1
+    })
+    .eq("id", currentRoom.id)
+    .eq("state_version", currentRoom.state_version)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    alert("ゲーム開始に失敗しました。もう一度お試しください。");
+    return;
+  }
+
+  currentRoom = data;
+  document.getElementById("statePreview").textContent = JSON.stringify(gameState, null, 2);
+  setConnectionStatus("通信：ゲームを開始しました");
+}
+
+    /************************************************************
      * 初期化
      ************************************************************/
 
