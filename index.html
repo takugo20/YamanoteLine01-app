@@ -1472,39 +1472,81 @@
     }
 
     function renderBoard() {
-      const board = document.getElementById("board");
-      board.innerHTML = "";
+  const board = document.getElementById("board");
+  board.innerHTML = "";
 
-      for (const square of MAP_SQUARES) {
-        const el = document.createElement("div");
-        el.className = `square ${square.type}`;
+  const state = currentGameState;
+  const currentPlayer = state ? state.players[state.currentPlayerIndex] : null;
 
-        let priceHtml = "";
+  for (const square of MAP_SQUARES) {
+    const el = document.createElement("div");
+    el.className = `square ${square.type}`;
 
-        if (square.type === "land") {
-          const land = LAND_DEFS[square.landId];
-          const area = getAreaById(land.areaId);
-          priceHtml = `
-            <div class="land-price">
-              ${formatMoney(land.price)} / 通行料 ${formatMoney(land.baseToll)}
-            </div>
-            <div class="square-type">${area.name}${land.isPrime ? "・特等地" : ""}</div>
-          `;
-          el.style.borderLeftColor = getAreaColor(land.areaId);
-        } else {
-          priceHtml = `<div class="square-type">${SQUARE_TYPE_LABELS[square.type] || square.type}</div>`;
+    if (currentPlayer && currentPlayer.position === square.id) {
+      el.classList.add("current-square");
+    }
+
+    let priceHtml = "";
+
+    if (square.type === "land") {
+      const landDef = LAND_DEFS[square.landId];
+      const area = getAreaById(landDef.areaId);
+
+      let ownerText = "";
+      let currentLand = null;
+
+      if (state) {
+        currentLand = state.lands.find(land => land.id === square.landId);
+        if (currentLand && currentLand.ownerId) {
+          const owner = state.players.find(player => player.id === currentLand.ownerId);
+          ownerText = owner ? `所有：${owner.name}` : "";
         }
+      }
 
-        el.innerHTML = `
-          <div class="square-no">No.${square.id}</div>
-          <div class="square-name">${square.name}</div>
-          ${priceHtml}
+      priceHtml = `
+        <div class="land-price">
+          ${formatMoney(landDef.price)} / 通行料 ${formatMoney(landDef.baseToll)}
+        </div>
+        <div class="square-type">
+          ${area.name}${landDef.isPrime ? "・特等地" : ""}
+          ${ownerText ? `<br>${ownerText}` : ""}
+        </div>
+      `;
+
+      el.style.borderLeftColor = getAreaColor(landDef.areaId);
+    } else {
+      priceHtml = `<div class="square-type">${SQUARE_TYPE_LABELS[square.type] || square.type}</div>`;
+    }
+
+    let piecesHtml = "";
+
+    if (state) {
+      const playersHere = state.players.filter(player => {
+        return !player.bankrupt && player.position === square.id;
+      });
+
+      if (playersHere.length > 0) {
+        piecesHtml = `
+          <div class="piece-wrap">
+            ${playersHere.map(player => {
+              return `<span class="piece" title="${player.name}" style="background:${player.colorValue}"></span>`;
+            }).join("")}
+          </div>
         `;
-
-        board.appendChild(el);
       }
     }
 
+    el.innerHTML = `
+      <div class="square-no">No.${square.id}</div>
+      <div class="square-name">${square.name}</div>
+      ${priceHtml}
+      ${piecesHtml}
+    `;
+
+    board.appendChild(el);
+  }
+}
+    
     function getAreaColor(areaId) {
       const colorMap = {
         central: "#f97316",
