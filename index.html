@@ -3360,6 +3360,8 @@ async function rollDiceOnline() {
     player.skipTurn = false;
     nextState.logs.push(`${player.name} は1回休みでした。`);
     nextState.phase = "after_roll";
+    nextState.pendingAction = null;
+    nextState.actionQueue = [];
 
     await saveGameStateOnline(nextState);
     return;
@@ -3385,7 +3387,8 @@ async function rollDiceOnline() {
     `${player.name} が ${roll} を出しました。${getSquareName(startPosition)} から ${getSquareName(endPosition)} へ移動しました。`
   );
 
-  processArrivalSquare(nextState, player);
+  nextState.actionQueue = buildMoveActionQueue(passedSquares, endPosition);
+  processNextQueuedAction(nextState);
 
   await saveGameStateOnline(nextState);
 }
