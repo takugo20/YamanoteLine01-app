@@ -2930,6 +2930,111 @@ function renderInvestLandAction(panel, action) {
   }
 }   
 
+function renderStockTradeAction(panel, action) {
+  const player = findPlayer(currentGameState, action.playerId);
+  const canOperate = isMyTurn();
+
+  if (!player) {
+    panel.innerHTML = `
+      <div class="pending-action-title">株取引</div>
+      <div class="pending-action-body">プレイヤー情報が見つかりません。</div>
+    `;
+    return;
+  }
+
+  const rows = currentGameState.areas.map(area => {
+    const ownStocks = area.stocks[player.id] || 0;
+    const stockValue = ownStocks * area.stockPrice;
+    const areaDef = getAreaById(area.id);
+    const growthText = areaDef && areaDef.growthType === "fast" ? "上昇しやすい" : "通常";
+
+    return `
+      <tr>
+        <td>${area.name}</td>
+        <td>${formatMoney(area.stockPrice)}</td>
+        <td>${ownStocks}株</td>
+        <td>${formatMoney(stockValue)}</td>
+        <td>${growthText}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const options = currentGameState.areas.map(area => {
+    return `<option value="${area.id}">${area.name}</option>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="pending-action-title">株取引</div>
+    <div class="pending-action-body">
+      ${player.name} は株取引できます。<br>
+      発生場所：${escapeHtml(action.sourceName || "証券取引所")}<br>
+      現在の現金：${formatMoney(player.money)}<br>
+      株は10株単位で売買できます。
+    </div>
+
+    <table class="stock-table">
+      <thead>
+        <tr>
+          <th>エリア</th>
+          <th>株価</th>
+          <th>保有</th>
+          <th>評価額</th>
+          <th>成長</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+
+    <div class="stock-form">
+      <div class="stock-form-row">
+        <label for="stockAreaSelect">エリア</label>
+        <select id="stockAreaSelect" ${!canOperate ? "disabled" : ""}>
+          ${options}
+        </select>
+      </div>
+
+      <div class="stock-form-row">
+        <label for="stockAmountInput">株数</label>
+        <input
+          id="stockAmountInput"
+          type="number"
+          min="10"
+          step="10"
+          value="10"
+          ${!canOperate ? "disabled" : ""}
+        />
+      </div>
+
+      <div class="button-row">
+        <button id="buyStockButton" type="button" ${!canOperate ? "disabled" : ""}>株を買う</button>
+        <button id="sellStockButton" type="button" ${!canOperate ? "disabled" : ""}>株を売る</button>
+      </div>
+
+      <button id="skipStockTradeButton" type="button" class="secondary" ${!canOperate ? "disabled" : ""}>
+        何もしない
+      </button>
+    </div>
+  `;
+
+  const buyButton = document.getElementById("buyStockButton");
+  const sellButton = document.getElementById("sellStockButton");
+  const skipButton = document.getElementById("skipStockTradeButton");
+
+  if (buyButton) {
+    buyButton.addEventListener("click", () => resolveStockTradeOnline("buy"));
+  }
+
+  if (sellButton) {
+    sellButton.addEventListener("click", () => resolveStockTradeOnline("sell"));
+  }
+
+  if (skipButton) {
+    skipButton.addEventListener("click", () => resolveStockTradeOnline("skip"));
+  }
+}
+    
 function renderLogPanel() {
   const panel = document.getElementById("logPanel");
   if (!panel || !currentGameState) return;
