@@ -1190,17 +1190,17 @@
       }
     }
 
-    @media (max-width: 1099px), (max-height: 649px), (orientation: portrait) {
-      .unsupported-screen {
-        display: flex;
-      }
-    }
+@media (max-width: 899px), (max-height: 559px), (orientation: portrait) {
+  .unsupported-screen {
+    display: flex;
+  }
+}
 
-    @media (min-width: 1100px) and (min-height: 650px) and (orientation: landscape) {
-      .unsupported-screen {
-        display: none;
-      }
-    }
+@media (min-width: 900px) and (min-height: 560px) and (orientation: landscape) {
+  .unsupported-screen {
+    display: none;
+  }
+}
 
     @media (max-width: 1250px) and (orientation: landscape) {
       .board {
@@ -1261,6 +1261,179 @@
         font-size: 10px;
       }
     }
+
+    @media (max-width: 1099px) and (min-width: 900px) and (orientation: landscape) {
+  .game-map-panel {
+    inset: 50px 10px 66px 10px;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .top-turn-bar {
+    top: 7px;
+    min-width: 280px;
+    max-width: calc(100vw - 160px);
+    padding: 6px 14px;
+  }
+
+  .top-turn-player {
+    font-size: 16px;
+  }
+
+  .top-turn-guide {
+    font-size: 11px;
+  }
+
+  .bottom-log-bar {
+    bottom: 7px;
+    width: calc(100vw - 160px);
+    height: 50px;
+    grid-template-columns: 68px 1fr;
+    padding: 6px 9px;
+    border-radius: 13px;
+  }
+
+  .bottom-log-title {
+    font-size: 11px;
+  }
+
+  .log-panel {
+    max-height: 36px;
+    font-size: 10px;
+  }
+
+  .floating-button {
+    width: 50px;
+    height: 50px;
+    font-size: 21px;
+  }
+
+  .control-floating-button {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .info-floating-button {
+    left: 10px;
+    bottom: 10px;
+  }
+
+  .control-overlay {
+    right: 10px;
+    bottom: 68px;
+  }
+
+  .info-overlay {
+    left: 10px;
+    bottom: 68px;
+  }
+
+  .floating-overlay {
+    width: 286px;
+    max-height: calc(100vh - 86px);
+    padding: 10px;
+    border-radius: 15px;
+  }
+
+  .square-info-overlay {
+    width: min(360px, calc(100vw - 80px));
+  }
+
+  .board {
+    gap: 3px;
+  }
+
+  .square {
+    padding: 2px;
+    border-radius: 7px;
+    border-width: 1.5px;
+  }
+
+  .board-station-name {
+    left: 3px;
+    top: 2px;
+    font-size: 7px;
+    max-width: calc(100% - 14px);
+  }
+
+  .board-star {
+    right: 2px;
+    top: 1px;
+    font-size: 10px;
+  }
+
+  .board-main-label {
+    font-size: clamp(8px, 1vw, 12px);
+  }
+
+  .board-main-label.special {
+    font-size: clamp(7px, 0.9vw, 11px);
+    letter-spacing: 0.03em;
+  }
+
+  .area-bottom-band {
+    height: 4px;
+  }
+
+  .owner-mark {
+    width: 8px;
+    height: 8px;
+    left: 3px;
+    bottom: 5px;
+  }
+
+  .piece-wrap {
+    right: 2px;
+    bottom: 5px;
+    gap: 1px;
+  }
+
+  .piece {
+    width: 9px;
+    height: 9px;
+    border-width: 1.5px;
+  }
+
+  .map-player-assets {
+    width: min(310px, 40vw);
+    gap: 4px;
+  }
+
+  .map-player-card {
+    padding: 5px 8px;
+    border-radius: 10px;
+  }
+
+  .map-player-name {
+    font-size: 11px;
+  }
+
+  .map-player-assets-line {
+    margin-top: 2px;
+    font-size: 9px;
+  }
+
+  .pending-action-box,
+  .card-use-panel,
+  .roll-result {
+    font-size: 11px;
+    padding: 7px;
+  }
+
+  .action-panel {
+    gap: 6px;
+  }
+
+  button {
+    padding: 8px 9px;
+    border-radius: 10px;
+  }
+
+  .mini-button {
+    padding: 6px 7px;
+    font-size: 11px;
+  }
+}
   </style>
 </head>
 <body>
@@ -2177,15 +2350,18 @@
       if (el) el.textContent = message;
     }
 
-    function checkSupportedViewport() {
-      const unsupported = document.getElementById("unsupportedScreen");
-      if (!unsupported) return;
+function checkSupportedViewport() {
+  const unsupported = document.getElementById("unsupportedScreen");
+  if (!unsupported) return;
 
-      const isLandscape = window.innerWidth >= window.innerHeight;
-      const isLargeEnough = window.innerWidth >= 1100 && window.innerHeight >= 650;
+  const isLandscape = window.innerWidth >= window.innerHeight;
 
-      unsupported.classList.toggle("hidden", isLandscape && isLargeEnough);
-    }
+  // 通常iPad / iPad mini の横画面も許可するため、下限を緩めます。
+  // スマホ横画面は高さが足りないことが多いため、引き続き非対応にします。
+  const isLargeEnough = window.innerWidth >= 900 && window.innerHeight >= 560;
+
+  unsupported.classList.toggle("hidden", isLandscape && isLargeEnough);
+}
 
        function renderPlayerForms() {
       const count = Number(document.getElementById("playerCount")?.value || 4);
