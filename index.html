@@ -138,23 +138,26 @@
       line-height: 1.8;
     }
 
-    .pre-game-screen {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 18px;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at top, rgba(219, 234, 254, 0.95), transparent 42%),
-        linear-gradient(135deg, #f8fafc, #e0e7ff);
-    }
+.pre-game-screen {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  background:
+    radial-gradient(circle at top, rgba(219, 234, 254, 0.95), transparent 42%),
+    linear-gradient(135deg, #f8fafc, #e0e7ff);
+}
 
-    .setup-shell {
-      width: min(760px, calc(100vw - 36px));
-      max-height: calc(100vh - 36px);
-      display: flex;
-      justify-content: center;
-    }
+.setup-shell {
+  width: min(760px, calc(100vw - 36px));
+  min-height: calc(100vh - 36px);
+  display: flex;
+  justify-content: center;
+  padding-bottom: 24px;
+}
 
     .panel {
       background: rgba(255, 255, 255, 0.94);
@@ -164,11 +167,11 @@
       padding: 16px;
     }
 
-    .setup-panel {
-      width: 100%;
-      max-height: calc(100vh - 36px);
-      overflow: hidden;
-    }
+.setup-panel {
+  width: 100%;
+  height: fit-content;
+  overflow: visible;
+}
 
     .panel-title {
       margin-bottom: 10px;
